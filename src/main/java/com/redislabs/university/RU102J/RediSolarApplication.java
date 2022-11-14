@@ -1,11 +1,18 @@
 package com.redislabs.university.RU102J;
 
-import com.redislabs.redistimeseries.RedisTimeSeries;
 import com.redislabs.university.RU102J.command.LoadCommand;
 import com.redislabs.university.RU102J.command.RunCommand;
-import com.redislabs.university.RU102J.dao.*;
+import com.redislabs.university.RU102J.dao.CapacityDaoRedisImpl;
+import com.redislabs.university.RU102J.dao.FeedDaoRedisImpl;
+import com.redislabs.university.RU102J.dao.MetricDaoRedisZsetImpl;
+import com.redislabs.university.RU102J.dao.SiteGeoDaoRedisImpl;
+import com.redislabs.university.RU102J.dao.SiteStatsDaoRedisImpl;
 import com.redislabs.university.RU102J.health.RediSolarHealthCheck;
-import com.redislabs.university.RU102J.resources.*;
+import com.redislabs.university.RU102J.resources.CapacityResource;
+import com.redislabs.university.RU102J.resources.MeterReadingResource;
+import com.redislabs.university.RU102J.resources.MetricsResource;
+import com.redislabs.university.RU102J.resources.SiteGeoResource;
+
 import io.dropwizard.Application;
 import io.dropwizard.assets.AssetsBundle;
 import io.dropwizard.setup.Bootstrap;
@@ -15,64 +22,55 @@ import redis.clients.jedis.JedisPoolConfig;
 
 public class RediSolarApplication extends Application<RediSolarConfiguration> {
 
-    public static void main(final String[] args) throws Exception {
-        new RediSolarApplication().run(args);
-    }
+	public static void main( final String[] args ) throws Exception {
+		new RediSolarApplication().run( args );
+	}
 
-    @Override
-    public String getName() {
-        return "RediSolar";
-    }
+	@Override
+	public String getName() {
+		return "RediSolar";
+	}
 
-    @Override
-    public void initialize(final Bootstrap<RediSolarConfiguration> bootstrap) {
-        bootstrap.addBundle(new AssetsBundle("/dashboard/dist", "/", "index.html"));
-        bootstrap.addCommand(new LoadCommand());
-        bootstrap.addCommand(new RunCommand());
-    }
+	@Override
+	public void initialize( final Bootstrap<RediSolarConfiguration> bootstrap ) {
+		bootstrap.addBundle( new AssetsBundle( "/dashboard/dist", "/", "index.html" ) );
+		bootstrap.addCommand( new LoadCommand() );
+		bootstrap.addCommand( new RunCommand() );
+	}
 
-    @Override
-    public void run(final RediSolarConfiguration configuration,
-                    final Environment environment) {
-        RedisConfig redisConfig = configuration.getRedisConfig();
-        JedisPool jedisPool;
-        
-        String password = redisConfig.getPassword();
+	@Override
+	public void run( final RediSolarConfiguration configuration, final Environment environment ) {
+		RedisConfig redisConfig = configuration.getRedisConfig();
+		JedisPool jedisPool;
 
-        if (password.length() > 0) {
-                jedisPool = new JedisPool(new JedisPoolConfig(), redisConfig.getHost(),
-                redisConfig.getPort(), 2000, redisConfig.getPassword());
-        } else {
-                jedisPool = new JedisPool(redisConfig.getHost(), redisConfig.getPort());
-        }
+		String password = redisConfig.getPassword();
 
-        // To use the geospatial features, replace the following lines with:
-        // SiteGeoResource siteResource =
-        //        new SiteGeoResource(new SiteGeoDaoRedisImpl(jedisPool));
-        SiteResource siteResource =
-                new SiteResource(new SiteDaoRedisImpl(jedisPool));
-        environment.jersey().register(siteResource);
+		if ( password.length() > 0 ) {
+			jedisPool = new JedisPool( new JedisPoolConfig(), redisConfig.getHost(), redisConfig.getPort(), 2000, redisConfig.getPassword() );
+		} else {
+			jedisPool = new JedisPool( redisConfig.getHost(), redisConfig.getPort() );
+		}
 
-        // For RedisTimeSeries: replace the next lines with
-        // MetricsResource metricsResource =
-        //              new MetricsResource(new MetricDaoRedisTSImpl(jedisPool));
-                MetricsResource metricsResource =
-                        new MetricsResource(new MetricDaoRedisZsetImpl(jedisPool));
-        environment.jersey().register(metricsResource);
+		// To use the geospatial features, replace the following lines with:
+		SiteGeoResource siteResource = new SiteGeoResource( new SiteGeoDaoRedisImpl( jedisPool ) );
+		//SiteResource siteResource = new SiteResource( new SiteDaoRedisImpl( jedisPool ) );
+		environment.jersey().register( siteResource );
 
-        CapacityResource capacityResource =
-                new CapacityResource(new CapacityDaoRedisImpl(jedisPool));
-        environment.jersey().register(capacityResource);
+		// For RedisTimeSeries: replace the next lines with
+		// MetricsResource metricsResource =
+		//              new MetricsResource(new MetricDaoRedisTSImpl(jedisPool));
+		MetricsResource metricsResource = new MetricsResource( new MetricDaoRedisZsetImpl( jedisPool ) );
+		environment.jersey().register( metricsResource );
 
-        MeterReadingResource meterResource =
-                new MeterReadingResource(new SiteStatsDaoRedisImpl(jedisPool),
-                        new MetricDaoRedisZsetImpl(jedisPool),
-                        // For RedisTimeSeries: new MetricDaoRedisTSImpl(jedisPool),
-                        new CapacityDaoRedisImpl(jedisPool),
-                        new FeedDaoRedisImpl(jedisPool));
-        environment.jersey().register(meterResource);
+		CapacityResource capacityResource = new CapacityResource( new CapacityDaoRedisImpl( jedisPool ) );
+		environment.jersey().register( capacityResource );
 
-        RediSolarHealthCheck healthCheck = new RediSolarHealthCheck(redisConfig);
-        environment.healthChecks().register("healthy", healthCheck);
-    }
+		MeterReadingResource meterResource = new MeterReadingResource( new SiteStatsDaoRedisImpl( jedisPool ), new MetricDaoRedisZsetImpl( jedisPool ),
+				// For RedisTimeSeries: new MetricDaoRedisTSImpl(jedisPool),
+				new CapacityDaoRedisImpl( jedisPool ), new FeedDaoRedisImpl( jedisPool ) );
+		environment.jersey().register( meterResource );
+
+		RediSolarHealthCheck healthCheck = new RediSolarHealthCheck( redisConfig );
+		environment.healthChecks().register( "healthy", healthCheck );
+	}
 }
