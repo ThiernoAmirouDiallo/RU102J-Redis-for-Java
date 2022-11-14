@@ -12,6 +12,7 @@ public class SiteStats {
     private Double minWhGenerated;
     private Double maxCapacity;
 
+
     /* These field names will be used by multiple classes, so we define
        them here to abide by DRY (don't repeat yourself). */
     public final static String reportingTimeField = "lastReportingTime";
