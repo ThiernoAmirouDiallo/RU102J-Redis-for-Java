@@ -1,5 +1,6 @@
 Redis-commands
     docker run -d --name redis-lab -p:8888:8888 redisuniversity/ru101-lab
+    docker run -d --name redis_ru102j -p:6380:6379 redislabs/redistimeseries --loadmodule /usr/lib/redis/modules/redistimeseries.so --appendonly yes
     # docker run -d --name redis-lab-102j -p:8888:8888 -p:8081:8081 redisuniversity/ru102j-lab
     docker run --name redis -d -p 6379:6379 redis redis-server --requirepass "SUPER_SECRET_PASSWORD"
     docker exec -it redis_ru102j redis-cli
@@ -7,8 +8,8 @@ Redis-commands
     docker run -it --rm redis redis-cli -h host.docker.internal -p 6379 -a SUPER_SECRET_PASSWORD
     redis://user:password@host:port/dbnum
       redis-cli -u redis://LJenkins:p%40ssw0rd@redis-16379.hosted.com:16379/0 PING
-
     localhost:8888/entry.html
+
     Redis-cli commands
       KEYS
         dbsize # number of keys
@@ -29,6 +30,7 @@ Redis-commands
         PEXPIRE user:1000:fname 10 # expire in 10 ms
         EXPIREAT key unix-time-seconds [NX | XX | GT | LT]
         PEXPIREAT key unix-time-milliseconds [NX | XX | GT | LT]
+
       STRINGS
         INCR user:1000:pwdErrorCount # set 1 if key does not exist
         INCRBY user:1000:pwdErrorCount 2
@@ -36,6 +38,7 @@ Redis-commands
         DECRBY user:1000:pwdErrorCount 2
         TYPE user:1000:pwdErrorCount
         OBJECT encoding user:1000:pwdErrorCount # internal incoding of a key value
+
       HASHES (Maps/dictionaries)
         HSET player:42 name thierno race black level 4 hp 20 gold 20
         HMSET player:43 name thierno race black level 4 hp 20 gold 20
@@ -53,6 +56,7 @@ Redis-commands
         HVALS player:42
         EXPIRE player:42 100
         HLEN player:42 # size
+
       LIST
         RPUSH playlist 71
         RPUSH playlist 53 45 32
@@ -70,6 +74,7 @@ Redis-commands
         LREM playlist:2 1 60 # remove value 60 one time
         LTRIM playlist:3 0 3 # keep element from index 0 to 3
         llen playlist:3
+
       SET
         SADD users:game:1 thierno
         SMEMBERS users:game:1:friends # print content
@@ -83,6 +88,7 @@ Redis-commands
         SINTER users:game:1 users:game:1:friends # intersection
         SUNION users:game:1 users:game:1:friends # union
         scard users:game:1 # size/cardinality
+
       SORTED SET
         ZADD leaders:exp 0 42
         ZINCRBY leaders:exp 120 42
@@ -115,14 +121,17 @@ Redis-commands
             SADD disabled two # this is the created intersection set
             ZUNIONSTORE tmp 2 all disabled WEIGHTS 1 0 AGGREGATE MIN
             ZREVRANGEBYSCORE tmp +inf 1 WITHSCORES
+
       TRANSACTION
         MULTI # to start a transaction: this will queue and batch commands later
         EXEC # execute all queued commands atomically/TRANSACTION
         DISCARD # Abort a transaction
+
       OPTIMISTIC LOCKING
         MULTI
         watch event:signups # exec will abort a transaction (nil is returned by EXEC) if a watched key before MULTI was modified by another client
         unwatch # if exec succeeds all keys are unwatched automitically
+
       BIT DATA
          setbit player:42:map1 9 1
          getbit player:42:map1 90
@@ -143,6 +152,7 @@ Redis-commands
           bitop OR mykey6 mykey2 mykey4
           bitfield mykey6 get u8 0
             1) (integer) 6
+
       PUB / SUB
            subscribe ch-1
            subscribe ch-1 ch-2
@@ -151,6 +161,26 @@ Redis-commands
            PSUBSCRIBE ch? # pattern subscribe
            PUBSUB numsub ch1 ch2 # print number of subscribers excluding pattern subscribers
            PUBSUB numpat # print number of pattern subscribers
+
+      STREAMS
+        xadd test:stream1 * siteId 1 tempC 18.0
+        xrevrange test:stream1 + - count 10
+
+      TIME SERIES
+        TS.CREATE particulate-sensor:2 RETENTION 604800000 CHUNK_SIZE 16192 DUPLICATE_POLICY LAST LABELS location house zone back zipcode H4C2N4
+        TS.ALTER particulate-sensor:1 RETENTION 604800000 CHUNK_SIZE 16192 DUPLICATE_POLICY LAST
+        TS.ADD particulate-sensor:1 * 5 # * uses redis current timestamp
+        TS.ADD particulate-sensor:1 1668519943530 6
+        TS.RANGE particulate-sensor:1 - + FILTER_BY_VALUE 6 48
+        TS.REVRANGE particulate-sensor:1 - + FILTER_BY_VALUE 6 48 # reverse range
+        TS.RANGE particulate-sensor:1 1668519943530 1668520187443
+        TS.RANGE particulate-sensor:1 - + AGGREGATION sum 500 # sum over 500 milliseconds interval
+        TS.RANGE particulate-sensor:1 - + AGGREGATION min 500 # min over 500 milliseconds interval
+        TS.RANGE particulate-sensor:1 - + AGGREGATION max 500 # max over 500 milliseconds interval
+        TS.RANGE particulate-sensor:1 - + AGGREGATION avg 500 # avg over 500 milliseconds interval
+        TS.CREATERULE particulate-sensor:1:avg:10 particulate-sensor:1 AGGREGATION avg 600000
+        TS.QUERYINDEX location=house
+
       GEOSPECIAL DATA
           GEOADD fouta:attractions -122.2345673 40.9876543 mity
           GEOADD fouta:attractions -122.3345673 40.8876543 centreville -122.2395 40.91 sily
@@ -165,6 +195,7 @@ Redis-commands
           GEORADIUS fouta:attractions -122.239 40.90 20 km STORE searchres2 STOREDIST resByDist2
           GEORADIUSBYMEMBER fouta:attractions sily 6 mi ASC count 2 STORE searchres STOREDIST resByDist
           zunionstore geo:event:combined 2 geo:events:Football geo:events:Softball aggregate min
+
       LUA SCRIPTING
         HSET names fname thierno lname diallo
         EVAL "return redis.call('HGET', KEYS[1], ARGV[1])" 1 names fname
@@ -177,6 +208,7 @@ Redis-commands
         EVAL "return redis.call('HMGET', KEYS[1], ARGV[1], ARGV[2])" 1 names fname lname # returns an array
         EVAL "return redis.call('HSCAN', KEYS[1], ARGV[1])" 1 names 0 # returns a table
         EVAL "return {{KEYS[1]}, {ARGV[1], ARGV[2]}}" 1 names thierno diallo # construct response manually
+
         MANAGING SCRIPTS
           SCRIPT LOAD "return redis.call('HGET', KEYS[1], ARGV[1])"
             "4688a0f6e1e971a14e2d596031751f0590d37a92"
@@ -189,6 +221,7 @@ Redis-commands
           SCRIPT KILL # kill currently running script
           SCRIPT DEBUG YES|SYNC|NO
           SHUTDOWN NOSAVE|SAVE
+
         MULTI LINES SCRIPT
           LUA_SCRIPT=`cat <<!
           -- convert args to numbers
