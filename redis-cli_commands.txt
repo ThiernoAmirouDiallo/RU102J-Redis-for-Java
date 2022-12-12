@@ -196,6 +196,9 @@ Redis-commands
           GEORADIUSBYMEMBER fouta:attractions sily 6 mi ASC count 2 STORE searchres STOREDIST resByDist
           zunionstore geo:event:combined 2 geo:events:Football geo:events:Softball aggregate min
 
+      COMMANDS MONITORING / LOGS
+        MONITOR
+
       LUA SCRIPTING
         HSET names fname thierno lname diallo
         EVAL "return redis.call('HGET', KEYS[1], ARGV[1])" 1 names fname
